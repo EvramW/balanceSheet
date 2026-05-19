@@ -937,21 +937,77 @@ st.markdown("""
 # شرح النسب دائماً ظاهر في الأعلى
 render_defs()
 
-st.markdown('<div class="sec-hdr">📂 رفع ملف البيانات</div>', unsafe_allow_html=True)
-uploaded = st.file_uploader(
-    "ارفع ملف Excel — العمود الأول: أسماء البنود | الأعمدة التالية: الفترات الزمنية",
-    type=["xlsx","xls"]
-)
+st.markdown('<div class="sec-hdr">📂 تحميل البيانات</div>', unsafe_allow_html=True)
 
+AUTO_FILE = "4-2026.xlsx"
+
+try:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+except:
+    script_dir = os.getcwd()
+
+auto_path = os.path.join(script_dir, AUTO_FILE)
+
+# حالة حفظ داخل Streamlit
+if "force_upload" not in st.session_state:
+    st.session_state.force_upload = False
+
+uploaded = None
+
+# زر رفع ملف جديد فقط
+col1, col2, col3 = st.columns([1,2,1])
+
+with col2:
+    if st.button("⬆ رفع ملف جديد", use_container_width=True):
+        st.session_state.force_upload = True
+        st.rerun()
+
+# التحميل التلقائي
+if os.path.exists(auto_path) and not st.session_state.force_upload:
+
+    st.success(f"✅ تم تحميل الملف تلقائياً: {AUTO_FILE}")
+
+    with open(auto_path, "rb") as f:
+        uploaded = BytesIO(f.read())
+
+else:
+    st.info("يمكن رفع ملف جديد وسيتم استبدال الملف الحالي تلقائياً")
+
+    new_file = st.file_uploader(
+        "اختر ملف Excel",
+        type=["xlsx", "xls"]
+    )
+
+    if new_file:
+
+        save_path = os.path.join(script_dir, AUTO_FILE)
+
+        with open(save_path, "wb") as f:
+            f.write(new_file.getbuffer())
+
+        uploaded = BytesIO(new_file.getvalue())
+
+        st.session_state.force_upload = False
+
+        st.success("✅ تم حفظ الملف الجديد واستبداله تلقائياً")
+
+# إذا لا يوجد ملف
 if not uploaded:
     st.markdown("""
-    <div style="background:#f4f8fd;border-radius:12px;padding:22px;text-align:center;direction:rtl;margin-top:16px">
-        <h3 style="color:#0d2137">كيفية الاستخدام</h3>
-        <p>① جهّز ملف Excel: العمود الأول = البنود المالية | الأعمدة التالية = الفترات الزمنية</p>
-        <p>② ارفع الملف وستبدأ عملية التحليل تلقائياً</p>
-        <p>③ اطّلع على المؤشرات والرسوم البيانية والتحليل النصي التفصيلي</p>
-        <p>④ حمّل التقرير PDF باللغة العربية</p>
-    </div>""", unsafe_allow_html=True)
+    <div style="
+        background:#f4f8fd;
+        border-radius:12px;
+        padding:20px;
+        text-align:center">
+
+    <h3>إدارة الملفات</h3>
+
+    <p>• يتم تحميل 4-2026.xlsx تلقائياً إذا كان موجوداً</p>
+    <p>• يمكنك حذفه أو استبداله بملف جديد</p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
     st.stop()
 
 # قراءة الملف
@@ -1066,10 +1122,6 @@ st.markdown('<div class="sec-hdr">📄 تحميل التقرير PDF</div>', uns
 # إظهار الخط المستخدم
 font_r = _find_font(False)
 font_name = "Amiri" if font_r and "Amiri" in font_r else "DejaVu Sans"
-if font_r:
-    st.markdown(f'<div class="abox ab-info">ℹ️ الخط المستخدم في PDF: <strong>{font_name}</strong> — ({font_r})</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="abox ab-warn">⚠️ لم يُعثر على ملف الخط. ضع Amiri-Regular.ttf و Amiri-Bold.ttf في نفس مجلد السكريبت.</div>', unsafe_allow_html=True)
 
 st.info("📋 التقرير يشمل: ملخص المؤشرات · شرح كل نسبة بطريقة حسابها · التحليل التفصيلي بالأرقام · التوصيات")
 if st.button("🔄 إنشاء التقرير PDF", type="primary"):
