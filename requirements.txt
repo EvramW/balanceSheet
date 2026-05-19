@@ -1,0 +1,8 @@
+streamlit
+arabic-reshaper
+python-bidi
+pandas
+numpy
+plotly
+reportlab
+openpyxl
