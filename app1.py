@@ -4,8 +4,6 @@
 الخط المستخدم في PDF:
   - Windows: Amiri (ضعه في نفس مجلد السكريبت)
   - Linux/Server: DejaVuSans (مدمج في النظام)
-
-الخط FreeSans لا يدعم العربية — تم إصلاح المشكلة.
 """
 
 import streamlit as st
@@ -15,12 +13,14 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    HRFlowable, PageBreak, KeepTogether
 )
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
+from reportlab.lib.units import cm, mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from io import BytesIO
@@ -44,18 +44,18 @@ st.markdown("""
 section[data-testid="stSidebar"]  { display: none !important; }
 
 /* RTL العام للمستند */
-html, body, .stApp, .block-container { 
-    direction: rtl !important; 
+html, body, .stApp, .block-container {
+    direction: rtl !important;
     text-align: right;
 }
 
 /* ترويسة */
 .app-header {
     background: linear-gradient(135deg, #0d2137 0%, #1a4a7a 60%, #2d7dd2 100%);
-    border-radius: 16px; 
-    padding: 30px 40px; 
+    border-radius: 16px;
+    padding: 30px 40px;
     margin-bottom: 24px;
-    text-align: center; 
+    text-align: center;
     color: white;
     direction: rtl;
 }
@@ -64,36 +64,36 @@ html, body, .stApp, .block-container {
 
 /* عناوين الأقسام */
 .sec-hdr {
-    font-size: 1.15rem; 
-    font-weight: 700; 
+    font-size: 1.15rem;
+    font-weight: 700;
     color: #0d2137;
-    border-right: 5px solid #2d7dd2; 
-    border-left: none; /* إلغاء أي تأثير يساري */
+    border-right: 5px solid #2d7dd2;
+    border-left: none;
     padding-right: 12px;
     padding-left: 0;
-    margin: 20px 0 10px; 
+    margin: 20px 0 10px;
     direction: rtl;
     text-align: right;
 }
 
 /* بطاقات KPI */
-.kpi-grid { 
-    display: flex; 
-    flex-wrap: wrap; 
-    gap: 10px; 
-    margin: 8px 0; 
+.kpi-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 8px 0;
     direction: rtl;
 }
 .kpi-card {
-    flex: 1 1 160px; 
-    border-radius: 11px; 
+    flex: 1 1 160px;
+    border-radius: 11px;
     padding: 16px 12px;
-    color: white; 
-    text-align: center; /* البطاقات الرقمية يفضل توسيطها */
+    color: white;
+    text-align: center;
     box-shadow: 0 4px 12px rgba(0,0,0,.18);
     direction: rtl;
 }
-.kpi-val   { font-size: 1.8rem; font-weight: 800; line-height: 1.1; direction: ltr; display: inline-block; } /* الأرقام تظل ltr داخل البطاقة لتظهر بشكل صحيح */
+.kpi-val   { font-size: 1.8rem; font-weight: 800; line-height: 1.1; direction: ltr; display: inline-block; }
 .kpi-lbl   { font-size: .76rem; opacity: .88; margin-top: 4px; }
 .kpi-calc  { font-size: .65rem; opacity: .72; margin-top: 3px; font-style: italic; }
 .kpi-good  { background: linear-gradient(135deg,#145a32,#27ae60); }
@@ -103,70 +103,101 @@ html, body, .stApp, .block-container {
 
 /* صناديق التحليل */
 .abox {
-    border-radius: 9px; 
-    padding: 12px 16px; 
+    border-radius: 9px;
+    padding: 12px 16px;
     margin: 5px 0;
-    border-right: 6px solid; 
+    border-right: 6px solid;
     border-left: none;
-    direction: rtl; 
+    direction: rtl;
     text-align: right;
-    line-height: 1.8; 
+    line-height: 1.8;
     font-size: .93rem;
 }
 .ab-good { background: #eafaf1; border-color: #27ae60; color: #145a32; }
 .ab-warn { background: #fef9e7; border-color: #f39c12; color: #7d5a00; }
 .ab-bad  { background: #fdedec; border-color: #c0392b; color: #6e1010; }
+.ab-def  { background: #f4f8fd; border-color: #2d7dd2; color: #1a2f45; }
 
-/* صناديق شرح النسب */
+/* صناديق شرح النسب (مدمجة مع التحليل) */
 .def-box {
-    background: #f4f8fd; 
+    background: #eaf0fb;
     border-radius: 9px;
-    border-right: 5px solid #2d7dd2; 
+    border-right: 5px solid #2d7dd2;
     border-left: none;
-    padding: 11px 15px; 
-    margin: 5px 0;
-    direction: rtl; 
+    padding: 11px 15px;
+    margin: 0 0 4px 0;
+    direction: rtl;
     text-align: right;
-    font-size: .9rem; 
-    line-height: 1.8; 
+    font-size: .88rem;
+    line-height: 1.8;
     color: #1a2f45;
 }
 .def-box strong { color: #0d2137; }
 
-/* ملاحظة لا تُطبع */
-.no-print { 
-    background: #fffbe6; 
-    border: 1px solid #f39c12;
-    border-radius: 7px; 
-    padding: 7px 13px; 
-    font-size: .8rem;
-    color: #7d5a00; 
-    direction: rtl; 
+/* مجموعة النسبة (تعريف + تحليل معاً) */
+.ratio-group {
+    border: 1px solid #d0dff0;
+    border-radius: 12px;
+    padding: 0;
+    margin: 10px 0;
+    overflow: hidden;
+    direction: rtl;
+}
+.ratio-group-header {
+    background: linear-gradient(90deg, #0d2137, #1a4a7a);
+    color: white;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 10px 16px;
+    direction: rtl;
     text-align: right;
-    margin-bottom: 6px; 
+}
+.ratio-group-body {
+    padding: 10px 12px;
+}
+
+/* ملاحظة لا تُطبع */
+.no-print {
+    background: #fffbe6;
+    border: 1px solid #f39c12;
+    border-radius: 7px;
+    padding: 7px 13px;
+    font-size: .8rem;
+    color: #7d5a00;
+    direction: rtl;
+    text-align: right;
+    margin-bottom: 6px;
 }
 @media print { .no-print { display: none !important; } }
 
 /* جدول مقارنة */
-.ctbl { 
-    width: 100%; 
-    border-collapse: collapse; 
-    direction: rtl; 
+.ctbl {
+    width: 100%;
+    border-collapse: collapse;
+    direction: rtl;
 }
-.ctbl th { 
-    background: #0d2137; 
-    color: white; 
-    padding: 9px 11px; 
-    font-size: .86rem; 
-    text-align: right; /* محاذاة العناوين لليمين */
+.ctbl th {
+    background: #0d2137;
+    color: white;
+    padding: 9px 11px;
+    font-size: .86rem;
+    text-align: right;
 }
-.ctbl td { 
-    padding: 8px 11px; 
-    font-size: .84rem; 
-    text-align: right; /* محاذاة المحتوى لليمين */
-    border-bottom: 1px solid #e0e7ef; 
+.ctbl td {
+    padding: 8px 11px;
+    font-size: .84rem;
+    text-align: right;
+    border-bottom: 1px solid #e0e7ef;
 }
 .ctbl tr:nth-child(even) td { background: #f4f8fd; }
+
+/* فاصل قسم */
+.section-divider {
+    border: none;
+    border-top: 2px solid #2d7dd2;
+    margin: 28px 0 18px 0;
+    opacity: 0.3;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -200,7 +231,7 @@ REQUIRED_ITEMS = {
 }
 
 # ══════════════════════════════════════════════════════
-# تعريفات المؤشرات (لكل من الواجهة والـ PDF)
+# تعريفات المؤشرات — تُستخدم في الواجهة والـ PDF معاً
 # ══════════════════════════════════════════════════════
 
 RATIO_DEFS = {
@@ -209,63 +240,68 @@ RATIO_DEFS = {
         "formula": "الأصول المتداولة ÷ الالتزامات المتداولة",
         "meaning": "تقيس مدى قدرة الشركة على سداد التزاماتها قصيرة الأجل من أصولها المتداولة. كلما ارتفعت كان وضع السيولة أفضل.",
         "ideal":   "ممتاز ≥ 2x  |  جيد 1.5–2x  |  مقبول 1–1.5x  |  ضعيف < 1x",
+        "section": "السيولة والملاءة المالية",
     },
     "النسبة_السريعة": {
         "name":    "النسبة السريعة  (Quick Ratio)",
         "formula": "(الأصول المتداولة − المخزون) ÷ الالتزامات المتداولة",
         "meaning": "تستبعد المخزون لأنه الأصل الأقل سيولة، وتقيس القدرة الفورية على السداد دون الحاجة لبيعه.",
         "ideal":   "ممتاز ≥ 1x  |  مقبول 0.7–1x  |  ضعيف < 0.7x",
+        "section": "السيولة والملاءة المالية",
     },
     "نسبة_النقدية": {
         "name":    "نسبة النقدية  (Cash Ratio)",
         "formula": "النقدية وما في حكمها ÷ الالتزامات المتداولة",
         "meaning": "أشد مقاييس السيولة تحفظاً؛ تعكس النقد الجاهز للسداد الفوري دون تحويل أي أصل آخر.",
         "ideal":   "جيد ≥ 0.5x  |  مقبول 0.2–0.5x  |  ضعيف < 0.2x",
+        "section": "السيولة والملاءة المالية",
     },
     "نسبة_الديون": {
         "name":    "نسبة الديون  (Debt Ratio)",
         "formula": "الالتزامات المتداولة ÷ إجمالي الأصول",
         "meaning": "تقيس نسبة الأصول الممولة بالديون. كلما انخفضت كان الهيكل المالي أكثر أماناً واستقلالية.",
         "ideal":   "آمن < 40%  |  مقبول 40–60%  |  مرتفع > 60%",
+        "section": "الهيكل المالي والتمويل",
     },
     "نسبة_حقوق_الملكية": {
         "name":    "نسبة حقوق الملكية  (Equity Ratio)",
         "formula": "حقوق الملكية ÷ إجمالي الأصول",
         "meaning": "تعكس نسبة الأصول الممولة ذاتياً من أموال الملاك. ارتفاعها يشير إلى استقلالية مالية وملاءة قوية.",
         "ideal":   "ممتاز ≥ 60%  |  جيد 40–60%  |  منخفض < 40%",
+        "section": "الهيكل المالي والتمويل",
     },
     "العائد_على_الملكية": {
         "name":    "العائد على حقوق الملكية  (ROE)",
         "formula": "صافي الربح ÷ حقوق الملكية",
         "meaning": "يقيس كفاءة الشركة في توليد الأرباح من أموال المساهمين. من أهم مؤشرات الكفاءة الإدارية.",
         "ideal":   "ممتاز ≥ 15%  |  جيد 8–15%  |  ضعيف < 8%",
+        "section": "الربحية والكفاءة",
     },
     "هامش_الأصول": {
         "name":    "العائد على الأصول  (ROA)",
         "formula": "صافي الربح ÷ إجمالي الأصول",
         "meaning": "يقيس كفاءة توظيف الأصول في تحقيق الأرباح بمعزل عن مصدر التمويل (ذاتي أو خارجي).",
         "ideal":   "ممتاز ≥ 10%  |  جيد 5–10%  |  ضعيف < 5%",
+        "section": "الربحية والكفاءة",
     },
     "نسبة_التمويل_البنكي": {
         "name":    "نسبة التمويل البنكي",
         "formula": "التسهيلات البنكية ÷ إجمالي الأصول",
         "meaning": "تكشف اعتماد الشركة على البنوك في تمويل أصولها وما يترتب على ذلك من أعباء فوائد.",
         "ideal":   "محدود < 15%  |  معتدل 15–30%  |  مرتفع > 30%",
+        "section": "الهيكل المالي والتمويل",
     },
 }
 
 # ══════════════════════════════════════════════════════
 # اكتشاف الخط العربي الصحيح
 # ══════════════════════════════════════════════════════
-# الأولوية: Amiri (أجمل للعربية) → DejaVuSans (مضمون)
-# FreeSans مستبعد تماماً لأنه لا يحتوي حروف عربية
 
 _FONT_R  = "Arabic"
 _FONT_B  = "ArabicBold"
 _loaded  = False
 
 def _find_font(bold=False):
-    """البحث عن الخط بالأولوية: Amiri أولاً ثم DejaVu"""
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
     except NameError:
@@ -273,29 +309,24 @@ def _find_font(bold=False):
 
     if bold:
         candidates = [
-            # Amiri Bold — Windows
             os.path.join(script_dir, "Amiri-Bold.ttf"),
             "D:/python/balanceSheet/Amiri-Bold.ttf",
             "C:/python/balanceSheet/Amiri-Bold.ttf",
-            # DejaVu Bold — Linux fallback
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            # Amiri Regular as bold fallback
             os.path.join(script_dir, "Amiri-Regular.ttf"),
             "D:/python/balanceSheet/Amiri-Regular.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         ]
     else:
         candidates = [
-            # Amiri Regular — Windows
             os.path.join(script_dir, "Amiri-Regular.ttf"),
             "D:/python/balanceSheet/Amiri-Regular.ttf",
             "C:/python/balanceSheet/Amiri-Regular.ttf",
-            # DejaVu — Linux fallback (يدعم العربية بالكامل)
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         ]
 
     for c in candidates:
-        if os.path.exists(c) and os.path.getsize(c) > 1000:  # تأكد أن الملف ليس فارغاً
+        if os.path.exists(c) and os.path.getsize(c) > 1000:
             return c
     return None
 
@@ -321,7 +352,6 @@ def load_fonts():
 # ══════════════════════════════════════════════════════
 
 def ar(text):
-    """تحويل النص العربي للعرض الصحيح في PDF"""
     return get_display(arabic_reshaper.reshape(str(text)))
 
 def fmt_num(v):
@@ -437,10 +467,6 @@ def calc_ratios(df, col):
 # ══════════════════════════════════════════════════════
 
 def build_analysis(r):
-    """
-    يُرجع قاموساً بـ 5 أقسام، كل قسم قائمة من (نص, مستوى).
-    كل بند يحتوي على: طريقة الحساب بالأرقام + المعنى + التقييم.
-    """
     g   = lambda k: float(r.get(k, 0) or 0)
     ca  = g('الأصول_المتداولة');   cl  = g('الالتزامات_المتداولة')
     ta  = g('إجمالي_الأصول');      eq  = g('حقوق_الملكية')
@@ -454,197 +480,200 @@ def build_analysis(r):
     wc  = g('رأس_المال_العامل')
     out = {}
 
-    # ────────────────────────────────
-    # 1. السيولة
-    # ────────────────────────────────
+    # ── 1. السيولة ──
     liq = []
-    # نسبة التداول
+
     calc = f"{fmt_full(ca)} ÷ {fmt_full(cl)} = {fmt_ratio(cr)}"
     meaning = "تقيس قدرة الشركة على سداد الالتزامات قصيرة الأجل"
     if cr >= 2:
-        taqeem = f"✅ ممتاز — السيولة قوية جداً، الشركة قادرة بيسر على تغطية كل التزاماتها قصيرة الأجل."
-        liq.append((f"**نسبة التداول: {fmt_ratio(cr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+        liq.append(("نسبة_التداول", f"نسبة التداول: {fmt_ratio(cr)}", calc, meaning,
+            "✅ ممتاز — السيولة قوية جداً، الشركة قادرة بيسر على تغطية كل التزاماتها قصيرة الأجل.", "good"))
     elif cr >= 1.5:
-        taqeem = f"✅ جيد — السيولة مستقرة ضمن الحدود المقبولة."
-        liq.append((f"**نسبة التداول: {fmt_ratio(cr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+        liq.append(("نسبة_التداول", f"نسبة التداول: {fmt_ratio(cr)}", calc, meaning,
+            "✅ جيد — السيولة مستقرة ضمن الحدود المقبولة.", "good"))
     elif cr >= 1:
-        taqeem = f"⚠️ مقبول — يُنصح بتعزيز السيولة تحسباً لأي التزامات طارئة."
-        liq.append((f"**نسبة التداول: {fmt_ratio(cr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+        liq.append(("نسبة_التداول", f"نسبة التداول: {fmt_ratio(cr)}", calc, meaning,
+            "⚠️ مقبول — يُنصح بتعزيز السيولة تحسباً لأي التزامات طارئة.", "warn"))
     else:
-        taqeem = f"🔴 ضعيف — خطر عدم القدرة على سداد الالتزامات قصيرة الأجل!"
-        liq.append((f"**نسبة التداول: {fmt_ratio(cr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "bad"))
+        liq.append(("نسبة_التداول", f"نسبة التداول: {fmt_ratio(cr)}", calc, meaning,
+            "🔴 ضعيف — خطر عدم القدرة على سداد الالتزامات قصيرة الأجل!", "bad"))
 
-    # النسبة السريعة
     calc = f"({fmt_full(ca)} − {fmt_full(inv)}) ÷ {fmt_full(cl)} = {fmt_ratio(qr)}"
     meaning = "تستبعد المخزون وتقيس السيولة الفورية"
     if qr >= 1:
-        taqeem = "✅ ممتاز — سيولة فورية قوية دون الحاجة لبيع المخزون."
-        liq.append((f"**النسبة السريعة: {fmt_ratio(qr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+        liq.append(("النسبة_السريعة", f"النسبة السريعة: {fmt_ratio(qr)}", calc, meaning,
+            "✅ ممتاز — سيولة فورية قوية دون الحاجة لبيع المخزون.", "good"))
     elif qr >= 0.7:
-        taqeem = "⚠️ مقبول — قدر من الاعتماد على المخزون لتغطية الالتزامات."
-        liq.append((f"**النسبة السريعة: {fmt_ratio(qr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+        liq.append(("النسبة_السريعة", f"النسبة السريعة: {fmt_ratio(qr)}", calc, meaning,
+            "⚠️ مقبول — قدر من الاعتماد على المخزون لتغطية الالتزامات.", "warn"))
     else:
-        taqeem = "🔴 ضعيف — اعتماد كبير على المخزون ينطوي على مخاطرة مرتفعة."
-        liq.append((f"**النسبة السريعة: {fmt_ratio(qr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "bad"))
+        liq.append(("النسبة_السريعة", f"النسبة السريعة: {fmt_ratio(qr)}", calc, meaning,
+            "🔴 ضعيف — اعتماد كبير على المخزون ينطوي على مخاطرة مرتفعة.", "bad"))
 
-    # نسبة النقدية
     calc = f"{fmt_full(csh)} ÷ {fmt_full(cl)} = {fmt_ratio(nr)}"
     meaning = "النقد الجاهز مقارنةً بالالتزامات المتداولة"
     if nr >= 0.5:
-        taqeem = "✅ مريح — نقد كافٍ للسداد الفوري دون بيع أي أصل."
-        liq.append((f"**نسبة النقدية: {fmt_ratio(nr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+        liq.append(("نسبة_النقدية", f"نسبة النقدية: {fmt_ratio(nr)}", calc, meaning,
+            "✅ مريح — نقد كافٍ للسداد الفوري دون بيع أي أصل.", "good"))
     elif nr >= 0.2:
-        taqeem = "⚠️ معتدل — النقد متاح بحد معقول."
-        liq.append((f"**نسبة النقدية: {fmt_ratio(nr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+        liq.append(("نسبة_النقدية", f"نسبة النقدية: {fmt_ratio(nr)}", calc, meaning,
+            "⚠️ معتدل — النقد متاح بحد معقول.", "warn"))
     else:
-        taqeem = "🔴 منخفض — شُح النقد قد يُعيق السداد الفوري."
-        liq.append((f"**نسبة النقدية: {fmt_ratio(nr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "bad"))
+        liq.append(("نسبة_النقدية", f"نسبة النقدية: {fmt_ratio(nr)}", calc, meaning,
+            "🔴 منخفض — شُح النقد قد يُعيق السداد الفوري.", "bad"))
 
-    # رأس المال العامل
     calc = f"{fmt_full(ca)} − {fmt_full(cl)} = {fmt_num(wc)}"
     if wc > 0:
-        liq.append((f"**رأس المال العامل: {fmt_num(wc)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: هامش الأمان التشغيلي\n🎯 التقييم: ✅ إيجابي — الشركة لديها هامش أمان تشغيلي كافٍ.", "good"))
+        liq.append((None, f"رأس المال العامل: {fmt_num(wc)}", calc,
+            "هامش الأمان التشغيلي",
+            "✅ إيجابي — الشركة لديها هامش أمان تشغيلي كافٍ.", "good"))
     else:
-        liq.append((f"**رأس المال العامل: {fmt_num(wc)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: هامش الأمان التشغيلي\n🎯 التقييم: 🔴 سلبي — ضغط تشغيلي يستوجب المعالجة.", "bad"))
+        liq.append((None, f"رأس المال العامل: {fmt_num(wc)}", calc,
+            "هامش الأمان التشغيلي",
+            "🔴 سلبي — ضغط تشغيلي يستوجب المعالجة.", "bad"))
     out["السيولة والملاءة المالية"] = liq
 
-    # ────────────────────────────────
-    # 2. الهيكل المالي
-    # ────────────────────────────────
+    # ── 2. الهيكل المالي ──
     fin = []
-    # نسبة الديون
+
     calc = f"{fmt_full(cl)} ÷ {fmt_full(ta)} = {fmt_pct(dr)}"
     meaning = "نسبة الأصول الممولة بالديون — كلما انخفضت كان أفضل"
     if dr <= 0.4:
-        taqeem = "✅ آمن — هيكل مالي محافظ يعتمد أساساً على التمويل الذاتي."
-        fin.append((f"**نسبة الديون: {fmt_pct(dr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+        fin.append(("نسبة_الديون", f"نسبة الديون: {fmt_pct(dr)}", calc, meaning,
+            "✅ آمن — هيكل مالي محافظ يعتمد أساساً على التمويل الذاتي.", "good"))
     elif dr <= 0.6:
-        taqeem = "⚠️ معتدل — ضمن الحدود المقبولة مع وجوب المتابعة."
-        fin.append((f"**نسبة الديون: {fmt_pct(dr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+        fin.append(("نسبة_الديون", f"نسبة الديون: {fmt_pct(dr)}", calc, meaning,
+            "⚠️ معتدل — ضمن الحدود المقبولة مع وجوب المتابعة.", "warn"))
     else:
-        taqeem = "🔴 مرتفع — مخاطر مالية متصاعدة تستوجب إعادة الهيكلة."
-        fin.append((f"**نسبة الديون: {fmt_pct(dr)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "bad"))
+        fin.append(("نسبة_الديون", f"نسبة الديون: {fmt_pct(dr)}", calc, meaning,
+            "🔴 مرتفع — مخاطر مالية متصاعدة تستوجب إعادة الهيكلة.", "bad"))
 
-    # نسبة حقوق الملكية
     calc = f"{fmt_full(eq)} ÷ {fmt_full(ta)} = {fmt_pct(er)}"
     meaning = "نسبة الأصول الممولة ذاتياً من أموال الملاك"
     if er >= 0.6:
-        taqeem = "✅ قوي — استقلالية مالية مرتفعة."
-        fin.append((f"**نسبة حقوق الملكية: {fmt_pct(er)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+        fin.append(("نسبة_حقوق_الملكية", f"نسبة حقوق الملكية: {fmt_pct(er)}", calc, meaning,
+            "✅ قوي — استقلالية مالية مرتفعة.", "good"))
     elif er >= 0.4:
-        taqeem = "⚠️ معتدل — مزيج من التمويل الذاتي والخارجي."
-        fin.append((f"**نسبة حقوق الملكية: {fmt_pct(er)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+        fin.append(("نسبة_حقوق_الملكية", f"نسبة حقوق الملكية: {fmt_pct(er)}", calc, meaning,
+            "⚠️ معتدل — مزيج من التمويل الذاتي والخارجي.", "warn"))
     else:
-        taqeem = "🔴 منخفض — اعتماد مفرط على تمويل الغير."
-        fin.append((f"**نسبة حقوق الملكية: {fmt_pct(er)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "bad"))
+        fin.append(("نسبة_حقوق_الملكية", f"نسبة حقوق الملكية: {fmt_pct(er)}", calc, meaning,
+            "🔴 منخفض — اعتماد مفرط على تمويل الغير.", "bad"))
 
-    # نسبة التمويل البنكي
     calc = f"{fmt_full(bnk)} ÷ {fmt_full(ta)} = {fmt_pct(br)}"
     meaning = "اعتماد الشركة على البنوك في تمويل أصولها"
     if br <= 0.15:
-        taqeem = "✅ محدود — أعباء الفائدة منخفضة ومؤشر إيجابي."
-        fin.append((f"**نسبة التمويل البنكي: {fmt_pct(br)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+        fin.append(("نسبة_التمويل_البنكي", f"نسبة التمويل البنكي: {fmt_pct(br)}", calc, meaning,
+            "✅ محدود — أعباء الفائدة منخفضة ومؤشر إيجابي.", "good"))
     elif br <= 0.3:
-        taqeem = "⚠️ معتدل — يُستحسن مراقبة أعباء الفائدة."
-        fin.append((f"**نسبة التمويل البنكي: {fmt_pct(br)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+        fin.append(("نسبة_التمويل_البنكي", f"نسبة التمويل البنكي: {fmt_pct(br)}", calc, meaning,
+            "⚠️ معتدل — يُستحسن مراقبة أعباء الفائدة.", "warn"))
     else:
-        taqeem = "🔴 مرتفع — أعباء الفائدة تُثقل الهيكل المالي."
-        fin.append((f"**نسبة التمويل البنكي: {fmt_pct(br)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "bad"))
+        fin.append(("نسبة_التمويل_البنكي", f"نسبة التمويل البنكي: {fmt_pct(br)}", calc, meaning,
+            "🔴 مرتفع — أعباء الفائدة تُثقل الهيكل المالي.", "bad"))
     out["الهيكل المالي والتمويل"] = fin
 
-    # ────────────────────────────────
-    # 3. الربحية
-    # ────────────────────────────────
+    # ── 3. الربحية ──
     prof = []
     if np_ > 0:
-        # ROE
         calc = f"{fmt_full(np_)} ÷ {fmt_full(eq)} = {fmt_pct(roe)}"
         meaning = "كفاءة توليد الأرباح من أموال المساهمين"
         if roe >= 0.15:
-            taqeem = "✅ ممتاز — كفاءة إدارية عالية جداً في توليد الأرباح."
-            prof.append((f"**العائد على الملكية ROE: {fmt_pct(roe)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+            prof.append(("العائد_على_الملكية", f"العائد على الملكية ROE: {fmt_pct(roe)}", calc, meaning,
+                "✅ ممتاز — كفاءة إدارية عالية جداً في توليد الأرباح.", "good"))
         elif roe >= 0.08:
-            taqeem = "✅ جيد — أداء ربحي مقبول."
-            prof.append((f"**العائد على الملكية ROE: {fmt_pct(roe)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+            prof.append(("العائد_على_الملكية", f"العائد على الملكية ROE: {fmt_pct(roe)}", calc, meaning,
+                "✅ جيد — أداء ربحي مقبول.", "good"))
         else:
-            taqeem = "⚠️ ضعيف — كفاءة استخدام حقوق الملكية تحتاج تحسيناً."
-            prof.append((f"**العائد على الملكية ROE: {fmt_pct(roe)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+            prof.append(("العائد_على_الملكية", f"العائد على الملكية ROE: {fmt_pct(roe)}", calc, meaning,
+                "⚠️ ضعيف — كفاءة استخدام حقوق الملكية تحتاج تحسيناً.", "warn"))
 
-        # ROA
         calc = f"{fmt_full(np_)} ÷ {fmt_full(ta)} = {fmt_pct(roa)}"
         meaning = "كفاءة توظيف الأصول في تحقيق الأرباح"
         if roa >= 0.10:
-            taqeem = "✅ ممتاز — الأصول تُولّد عائداً مرتفعاً."
-            prof.append((f"**العائد على الأصول ROA: {fmt_pct(roa)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+            prof.append(("هامش_الأصول", f"العائد على الأصول ROA: {fmt_pct(roa)}", calc, meaning,
+                "✅ ممتاز — الأصول تُولّد عائداً مرتفعاً.", "good"))
         elif roa >= 0.05:
-            taqeem = "✅ جيد — الأصول تُستخدم بكفاءة معقولة."
-            prof.append((f"**العائد على الأصول ROA: {fmt_pct(roa)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+            prof.append(("هامش_الأصول", f"العائد على الأصول ROA: {fmt_pct(roa)}", calc, meaning,
+                "✅ جيد — الأصول تُستخدم بكفاءة معقولة.", "good"))
         else:
-            taqeem = "⚠️ منخفض — كفاءة توظيف الأصول تحتاج مراجعة."
-            prof.append((f"**العائد على الأصول ROA: {fmt_pct(roa)}**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+            prof.append(("هامش_الأصول", f"العائد على الأصول ROA: {fmt_pct(roa)}", calc, meaning,
+                "⚠️ منخفض — كفاءة توظيف الأصول تحتاج مراجعة.", "warn"))
     else:
-        prof.append((
-            f"**نتيجة الفترة: خسارة ({fmt_num(abs(np_))})**\n"
-            f"📌 المعنى: الشركة تحقق خسائر في هذه الفترة\n"
-            f"🎯 التقييم: 🔴 عاجل — يتطلب خطة تصحيحية فورية لوقف النزيف المالي.", "bad"))
-        prof.append((
-            f"**ROE: {fmt_pct(roe)}  |  ROA: {fmt_pct(roa)}**\n"
-            f"📌 المعنى: كلا المؤشرين سلبيان بسبب الخسارة\n"
-            f"🎯 التقييم: 🔴 أولوية قصوى لاستعادة الربحية.", "bad"))
+        prof.append((None,
+            f"نتيجة الفترة: خسارة ({fmt_num(abs(np_))})", "—",
+            "الشركة تحقق خسائر في هذه الفترة",
+            "🔴 عاجل — يتطلب خطة تصحيحية فورية لوقف النزيف المالي.", "bad"))
+        prof.append((None,
+            f"ROE: {fmt_pct(roe)}  |  ROA: {fmt_pct(roa)}", "—",
+            "كلا المؤشرين سلبيان بسبب الخسارة",
+            "🔴 أولوية قصوى لاستعادة الربحية.", "bad"))
     out["الربحية والكفاءة"] = prof
 
-    # ────────────────────────────────
-    # 4. التشغيل
-    # ────────────────────────────────
+    # ── 4. التشغيل ──
     ops = []
     if ta > 0:
         rp = rec / ta
         calc = f"{fmt_full(rec)} ÷ {fmt_full(ta)} = {fmt_pct(rp)}"
         meaning = "حجم ديون العملاء مقارنةً بإجمالي الأصول"
         if rp > 0.40:
-            taqeem = "🔴 مرتفع جداً — ضرورة تسريع التحصيل وتقليل فترة الائتمان."
-            ops.append((f"**أرصدة العملاء: {fmt_num(rec)} ({fmt_pct(rp)} من الأصول)**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "bad"))
+            ops.append((None, f"أرصدة العملاء: {fmt_num(rec)} ({fmt_pct(rp)} من الأصول)", calc, meaning,
+                "🔴 مرتفع جداً — ضرورة تسريع التحصيل وتقليل فترة الائتمان.", "bad"))
         elif rp > 0.25:
-            taqeem = "⚠️ معتدل — متابعة دورية مستمرة للتحصيل."
-            ops.append((f"**أرصدة العملاء: {fmt_num(rec)} ({fmt_pct(rp)} من الأصول)**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+            ops.append((None, f"أرصدة العملاء: {fmt_num(rec)} ({fmt_pct(rp)} من الأصول)", calc, meaning,
+                "⚠️ معتدل — متابعة دورية مستمرة للتحصيل.", "warn"))
         else:
-            taqeem = "✅ جيد — ضمن الحدود المعقولة."
-            ops.append((f"**أرصدة العملاء: {fmt_num(rec)} ({fmt_pct(rp)} من الأصول)**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+            ops.append((None, f"أرصدة العملاء: {fmt_num(rec)} ({fmt_pct(rp)} من الأصول)", calc, meaning,
+                "✅ جيد — ضمن الحدود المعقولة.", "good"))
 
         ip = inv / ta
         calc = f"{fmt_full(inv)} ÷ {fmt_full(ta)} = {fmt_pct(ip)}"
         meaning = "حجم المخزون مقارنةً بإجمالي الأصول"
         if ip > 0.30:
-            taqeem = "🔴 مرتفع — مراجعة سياسة الشراء وتحسين دوران المخزون."
-            ops.append((f"**المخزون: {fmt_num(inv)} ({fmt_pct(ip)} من الأصول)**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "bad"))
+            ops.append((None, f"المخزون: {fmt_num(inv)} ({fmt_pct(ip)} من الأصول)", calc, meaning,
+                "🔴 مرتفع — مراجعة سياسة الشراء وتحسين دوران المخزون.", "bad"))
         elif ip > 0.15:
-            taqeem = "⚠️ معتدل — متابعة معدل الدوران."
-            ops.append((f"**المخزون: {fmt_num(inv)} ({fmt_pct(ip)} من الأصول)**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "warn"))
+            ops.append((None, f"المخزون: {fmt_num(inv)} ({fmt_pct(ip)} من الأصول)", calc, meaning,
+                "⚠️ معتدل — متابعة معدل الدوران.", "warn"))
         else:
-            taqeem = "✅ ضمن المستوى الطبيعي."
-            ops.append((f"**المخزون: {fmt_num(inv)} ({fmt_pct(ip)} من الأصول)**\n📐 طريقة الحساب: {calc}\n📌 المعنى: {meaning}\n🎯 التقييم: {taqeem}", "good"))
+            ops.append((None, f"المخزون: {fmt_num(inv)} ({fmt_pct(ip)} من الأصول)", calc, meaning,
+                "✅ ضمن المستوى الطبيعي.", "good"))
     out["المؤشرات التشغيلية"] = ops
 
-    # ────────────────────────────────
-    # 5. التوصيات
-    # ────────────────────────────────
+    # ── 5. التوصيات ──
     rec_l = []
     if cr < 1.5:
-        rec_l.append(("تعزيز السيولة: تسريع تحصيل الديون أو تحويل جزء من التمويل قصير الأجل إلى طويل الأجل.", "bad"))
+        rec_l.append((None, "تعزيز السيولة", "—",
+            "تسريع تحصيل الديون أو تحويل جزء من التمويل قصير الأجل إلى طويل الأجل.",
+            "يُنصح بمراجعة سياسة الائتمان وتحسين دورة التحصيل.", "bad"))
     if dr > 0.6:
-        rec_l.append(("إعادة هيكلة الديون: تحويل الالتزامات قصيرة الأجل إلى طويلة لتخفيف الضغط المالي.", "bad"))
+        rec_l.append((None, "إعادة هيكلة الديون", "—",
+            "تحويل الالتزامات قصيرة الأجل إلى طويلة لتخفيف الضغط المالي.",
+            "التفاوض مع الجهات التمويلية لإعادة جدولة القروض.", "bad"))
     if br > 0.3:
-        rec_l.append(("تنويع مصادر التمويل وتقليل الاعتماد على التسهيلات البنكية لخفض أعباء الفائدة.", "bad"))
+        rec_l.append((None, "تنويع مصادر التمويل", "—",
+            "تقليل الاعتماد على التسهيلات البنكية لخفض أعباء الفائدة.",
+            "دراسة البدائل كإصدار صكوك أو رفع رأس المال.", "bad"))
     if np_ < 0:
-        rec_l.append(("خطة إنقاذ تشغيلية عاجلة: مراجعة هيكل التكاليف ورفع الإيرادات لتحقيق التعادل ثم الربح.", "bad"))
+        rec_l.append((None, "خطة إنقاذ تشغيلية عاجلة", "—",
+            "مراجعة هيكل التكاليف ورفع الإيرادات لتحقيق التعادل ثم الربح.",
+            "🔴 أولوية قصوى لوقف النزيف المالي فوراً.", "bad"))
     elif roe < 0.08:
-        rec_l.append(("مراجعة كفاءة التشغيل وهامش الربح للوصول إلى معدل ROE ≥ 8%.", "warn"))
+        rec_l.append((None, "تحسين كفاءة التشغيل", "—",
+            "مراجعة هامش الربح للوصول إلى معدل ROE ≥ 8%.",
+            "تفعيل برامج خفض التكاليف ورفع الإنتاجية.", "warn"))
     if ta > 0 and rec / ta > 0.35:
-        rec_l.append(("تطبيق سياسة ائتمان أكثر صرامة وتقليل فترات السماح الممنوحة للعملاء.", "warn"))
+        rec_l.append((None, "تشديد سياسة الائتمان", "—",
+            "تطبيق سياسة ائتمان أكثر صرامة وتقليل فترات السماح الممنوحة للعملاء.",
+            "مراجعة عقود العملاء وتطبيق غرامات التأخير.", "warn"))
     if ta > 0 and inv / ta > 0.25:
-        rec_l.append(("تحسين إدارة المخزون وتقليل رأس المال المحتجز فيه باستخدام تقنيات JIT.", "warn"))
+        rec_l.append((None, "تحسين إدارة المخزون", "—",
+            "تقليل رأس المال المحتجز في المخزون باستخدام تقنيات JIT.",
+            "مراجعة دورية لمعدل دوران المخزون وتصفية الراكد.", "warn"))
     if not rec_l:
-        rec_l.append(("الوضع المالي العام مستقر ومشجع. يُنصح بالتوسع الحذر مع المحافظة على السياسات الحالية.", "good"))
+        rec_l.append((None, "الوضع المالي مستقر ومشجع", "—",
+            "جميع المؤشرات ضمن النطاق المقبول أو أفضل منه.",
+            "✅ يُنصح بالتوسع الحذر مع المحافظة على السياسات الحالية.", "good"))
     out["التوصيات"] = rec_l
 
     return out
@@ -714,67 +743,197 @@ def draw_charts(rdf, lbls):
     st.plotly_chart(fig6,use_container_width=True)
 
 # ══════════════════════════════════════════════════════
-# PDF باللغة العربية
+# عرض التحليل المدمج (شرح + تحليل معاً) في الواجهة
 # ══════════════════════════════════════════════════════
 
-def _ps(nm,sz=10,bold=False,align=TA_RIGHT,clr=colors.black,lead=22,sb=4,sa=4):
-    return ParagraphStyle(nm,fontName=_FONT_B if bold else _FONT_R,
-        fontSize=sz,alignment=align,leading=lead,
-        textColor=clr,spaceBefore=sb,spaceAfter=sa)
+def render_merged_analysis_item(ratio_key, title, calc, meaning, taqeem, level):
+    """
+    عرض بطاقة مدمجة: إذا كان ratio_key موجوداً يعرض التعريف + المعيار أولاً
+    ثم طريقة الحساب + التقييم.
+    """
+    css = {"good": "ab-good", "warn": "ab-warn", "bad": "ab-bad"}.get(level, "ab-warn")
+    d = RATIO_DEFS.get(ratio_key)
+
+    if d:
+        # بطاقة مدمجة: تعريف + شرح + حساب + تقييم
+        st.markdown(f"""
+        <div class="ratio-group">
+            <div class="ratio-group-header">📊 {d['name']}</div>
+            <div class="ratio-group-body">
+                <div class="def-box">
+                    🔢 <strong>طريقة الحساب النظرية:</strong> {d['formula']}<br>
+                    📌 <strong>المعنى:</strong> {d['meaning']}<br>
+                    🎯 <strong>المعيار المرجعي:</strong> {d['ideal']}
+                </div>
+                <div class="abox {css}" style="margin-top:6px">
+                    <strong style="font-size:.97rem">{title}</strong>
+                    <div style="margin-top:5px;font-size:.87rem">📐 <strong>الحساب الفعلي:</strong> {calc}</div>
+                    <div style="margin-top:3px;font-size:.87rem">📌 {meaning}</div>
+                    <div style="margin-top:3px;font-size:.87rem">🎯 {taqeem}</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # بطاقة عادية بدون تعريف (رأس المال العامل، التوصيات، إلخ)
+        st.markdown(f"""
+        <div class="abox {css}">
+            <strong style="font-size:.97rem">{title}</strong>
+            <div style="margin-top:5px;font-size:.87rem">📐 <strong>الحساب:</strong> {calc}</div>
+            <div style="margin-top:3px;font-size:.87rem">📌 {meaning}</div>
+            <div style="margin-top:3px;font-size:.87rem">🎯 {taqeem}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════
+# PDF باللغة العربية — A4 مضبوط مع فواصل
+# ══════════════════════════════════════════════════════
+
+# عرض الصفحة A4 = 595pt ، هوامش 40+30 = 70pt => صافي العرض = 525pt
+PAGE_W   = A4[0]          # 595.27 pt
+L_MARGIN = 30
+R_MARGIN = 40
+CONTENT_W = PAGE_W - L_MARGIN - R_MARGIN   # ~525 pt
+
+def _ps(nm,sz=10,bold=False,align=TA_RIGHT,clr=colors.black,lead=None,sb=4,sa=4):
+    if lead is None:
+        lead = sz * 1.6
+    return ParagraphStyle(nm,
+        fontName=_FONT_B if bold else _FONT_R,
+        fontSize=sz, alignment=align, leading=lead,
+        textColor=clr, spaceBefore=sb, spaceAfter=sa,
+        wordWrap='RTL')
+
+def _section_divider():
+    """فاصل أنيق بين الأقسام"""
+    return [
+        Spacer(1, 8),
+        HRFlowable(width=CONTENT_W, thickness=1.5,
+                   color=colors.HexColor('#2d7dd2'),
+                   spaceAfter=8, spaceBefore=4),
+    ]
+
+def _section_title(text, style):
+    """عنوان قسم داخل مستطيل ملون"""
+    p = Paragraph(ar(text), style)
+    t = Table([[p]], colWidths=[CONTENT_W])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0),(-1,-1), colors.HexColor('#0d2137')),
+        ('TOPPADDING', (0,0),(-1,-1), 7),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 7),
+        ('LEFTPADDING', (0,0),(-1,-1), 12),
+        ('RIGHTPADDING', (0,0),(-1,-1), 12),
+    ]))
+    return t
+
+def _subsection_title(text, style):
+    """عنوان قسم فرعي بخلفية فاتحة"""
+    p = Paragraph(ar(text), style)
+    t = Table([[p]], colWidths=[CONTENT_W])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0),(-1,-1), colors.HexColor('#1a4a7a')),
+        ('TOPPADDING', (0,0),(-1,-1), 5),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 5),
+        ('LEFTPADDING', (0,0),(-1,-1), 10),
+        ('RIGHTPADDING', (0,0),(-1,-1), 10),
+    ]))
+    return t
+
+def alert_block_pdf(lines, level, styles):
+    """كتلة ملونة في PDF مع ضبط العرض لـ A4"""
+    BG = {'good': colors.HexColor('#eafaf1'),
+          'warn': colors.HexColor('#fef9e7'),
+          'bad':  colors.HexColor('#fdedec')}
+    BD = {'good': colors.HexColor('#27ae60'),
+          'warn': colors.HexColor('#f39c12'),
+          'bad':  colors.HexColor('#c0392b')}
+    bg = BG.get(level, colors.HexColor('#f4f8fd'))
+    bd = BD.get(level, colors.HexColor('#2d7dd2'))
+
+    cell_els = []
+    S_BODY, S_SM = styles
+    for i, line in enumerate(lines):
+        if not line.strip():
+            continue
+        sty = _ps(f'al_{i}_{id(line)}', 10 if i==0 else 9,
+                  bold=(i==0), align=TA_RIGHT,
+                  clr=colors.HexColor('#1a2f45'),
+                  lead=18 if i>0 else 20)
+        cell_els.append(Paragraph(ar(line), sty))
+        if i < len(lines)-1:
+            cell_els.append(Spacer(1, 2))
+
+    t = Table([cell_els], colWidths=[CONTENT_W - 20])
+    t.setStyle(TableStyle([
+        ('BACKGROUND',   (0,0),(-1,-1), bg),
+        ('LINEAFTER',    (0,0),(-1,-1), 5, bd),
+        ('TOPPADDING',   (0,0),(-1,-1), 7),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 7),
+        ('LEFTPADDING',  (0,0),(-1,-1), 10),
+        ('RIGHTPADDING', (0,0),(-1,-1), 10),
+    ]))
+    return t
+
+def def_block_pdf(d, styles):
+    """كتلة تعريف النسبة في PDF"""
+    S_BODY, S_SM = styles
+    p = Paragraph(ar(
+        f"🔢 طريقة الحساب: {d['formula']}   |   "
+        f"📌 المعنى: {d['meaning']}   |   "
+        f"🎯 المعيار: {d['ideal']}"
+    ), S_SM)
+    t = Table([[p]], colWidths=[CONTENT_W - 20])
+    t.setStyle(TableStyle([
+        ('BACKGROUND',   (0,0),(-1,-1), colors.HexColor('#eaf0fb')),
+        ('LINEAFTER',    (0,0),(-1,-1), 4, colors.HexColor('#2d7dd2')),
+        ('TOPPADDING',   (0,0),(-1,-1), 6),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 6),
+        ('LEFTPADDING',  (0,0),(-1,-1), 10),
+        ('RIGHTPADDING', (0,0),(-1,-1), 10),
+    ]))
+    return t
 
 def build_pdf(ratios_list, months, labels):
     if not load_fonts():
         return None
+
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
-        rightMargin=50, leftMargin=30, topMargin=40, bottomMargin=30)
+        rightMargin=R_MARGIN, leftMargin=L_MARGIN,
+        topMargin=35, bottomMargin=30)
 
-    S_TTL  = _ps('ttl',20,True, TA_CENTER,colors.HexColor('#0d2137'),30, 0,10)
-    S_SUB  = _ps('sub',10,False,TA_CENTER,colors.HexColor('#555555'),17, 2, 8)
-    S_H1   = _ps('h1', 13,True, TA_RIGHT, colors.HexColor('#0d2137'),26,12, 4)
-    S_H2   = _ps('h2', 11,True, TA_RIGHT, colors.HexColor('#1a4a7a'),20, 6, 3)
-    S_BODY = _ps('bd', 10,False,TA_RIGHT, colors.HexColor('#222222'),20)
-    S_SM   = _ps('sm',  9,False,TA_RIGHT, colors.HexColor('#444444'),18)
-    S_CTR  = _ps('ct',  9,False,TA_CENTER,colors.HexColor('#666666'),16)
-
-    BG = {'good':colors.HexColor('#eafaf1'),'warn':colors.HexColor('#fef9e7'),'bad':colors.HexColor('#fdedec')}
-    BD = {'good':colors.HexColor('#27ae60'),'warn':colors.HexColor('#f39c12'),'bad':colors.HexColor('#c0392b')}
-
-    def alert_block(lines, level):
-        """كتلة ملونة متعددة الأسطر"""
-        bg = BG.get(level, colors.HexColor('#f4f8fd'))
-        bd = BD.get(level, colors.HexColor('#2d7dd2'))
-        cell_els = []
-        for i, line in enumerate(lines):
-            sz  = 10 if i == 0 else 9
-            bld = (i == 0)
-            sty = _ps(f'al{id(line)}{i}', sz, bld, TA_RIGHT, colors.HexColor('#1a2f45'), 18 if i > 0 else 20)
-            cell_els.append(Paragraph(ar(line), sty))
-            if i < len(lines)-1:
-                cell_els.append(Spacer(1, 2))
-        t = Table([cell_els], colWidths=[460])
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0,0),(-1,-1), bg),
-            ('LINEAFTER',  (0,0),(-1,-1), 5, bd),
-            ('TOPPADDING', (0,0),(-1,-1), 7),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 7),
-            ('LEFTPADDING', (0,0),(-1,-1), 10),
-            ('RIGHTPADDING',(0,0),(-1,-1), 10),
-        ]))
-        return t
+    # ── أنماط النصوص ──
+    S_TTL  = _ps('ttl', 20, True,  TA_CENTER, colors.HexColor('#0d2137'), 30,  0, 10)
+    S_SUB  = _ps('sub', 10, False, TA_CENTER, colors.HexColor('#555555'), 17,  2,  8)
+    S_H1   = _ps('h1',  13, True,  TA_RIGHT,  colors.white,               26, 12,  4)
+    S_H2   = _ps('h2',  11, True,  TA_RIGHT,  colors.white,               20,  6,  3)
+    S_H3   = _ps('h3',  11, True,  TA_RIGHT,  colors.HexColor('#0d2137'), 20,  8,  3)
+    S_BODY = _ps('bd',  10, False, TA_RIGHT,  colors.HexColor('#222222'), 20)
+    S_SM   = _ps('sm',   9, False, TA_RIGHT,  colors.HexColor('#333333'), 18)
+    S_CTR  = _ps('ct',   9, False, TA_CENTER, colors.HexColor('#666666'), 16)
+    STYLES = (S_BODY, S_SM)
 
     el = []
 
-    # ── غلاف ──
-    el += [Spacer(1,30),
-           Paragraph(ar("التقرير المالي الشامل"), S_TTL),
-           Spacer(1,6),
-           Paragraph(ar("تحليل القوائم المالية — نسب ومؤشرات وتوصيات"), S_SUB),
-           Paragraph(ar(f"الفترة: {labels[0]} — {labels[-1]}" if len(labels)>1 else labels[0]), S_SUB),
-           HRFlowable(width="100%",thickness=2,color=colors.HexColor('#0d2137'),spaceAfter=20)]
+    # ══════════════════════════════════════════════
+    # الغلاف
+    # ══════════════════════════════════════════════
+    el += [
+        Spacer(1, 30),
+        Paragraph(ar("التقرير المالي الشامل"), S_TTL),
+        Spacer(1, 6),
+        Paragraph(ar("تحليل القوائم المالية — نسب ومؤشرات وتوصيات"), S_SUB),
+        Paragraph(ar(f"الفترة: {labels[0]} — {labels[-1]}" if len(labels)>1 else labels[0]), S_SUB),
+    ]
+    el += _section_divider()
 
-    # ── جدول الملخص ──
-    el.append(Paragraph(ar("أولاً: ملخص المؤشرات المالية"), S_H1))
+    # ══════════════════════════════════════════════
+    # القسم الأول: ملخص المؤشرات
+    # ══════════════════════════════════════════════
+    el.append(Spacer(1, 6))
+    el.append(_section_title("أولاً: ملخص المؤشرات المالية", S_H1))
+    el.append(Spacer(1, 8))
+
     hdr  = [ar("المؤشر")] + [ar(lb) for lb in labels]
     rows = [hdr]
     INDICS = [
@@ -794,10 +953,12 @@ def build_pdf(ratios_list, months, labels):
         ("التسهيلات_البنكية",   "التسهيلات البنكية",     fmt_num),
         ("رأس_المال_العامل",    "رأس المال العامل",      fmt_num),
     ]
-    for key,lbl,fmtr in INDICS:
-        rows.append([ar(lbl)]+[ar(fmtr(r.get(key,0))) for r in ratios_list])
+    for key, lbl, fmtr in INDICS:
+        rows.append([ar(lbl)] + [ar(fmtr(r.get(key, 0))) for r in ratios_list])
+
     n  = len(labels)
-    cw = [180]+[int(280/n)]*n
+    cw = [int(CONTENT_W * 0.40)] + [int(CONTENT_W * 0.60 / n)] * n
+
     tbl = Table(rows, colWidths=cw, repeatRows=1)
     tbl.setStyle(TableStyle([
         ('BACKGROUND',     (0,0), (-1,0),  colors.HexColor('#0d2137')),
@@ -807,53 +968,128 @@ def build_pdf(ratios_list, months, labels):
         ('FONTSIZE',       (0,1), (-1,-1), 9),
         ('ALIGN',          (0,0), (-1,-1), 'CENTER'),
         ('VALIGN',         (0,0), (-1,-1), 'MIDDLE'),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#f4f8fd'),colors.white]),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#f4f8fd'), colors.white]),
         ('GRID',           (0,0), (-1,-1), 0.4, colors.HexColor('#c5d3e0')),
         ('ROWHEIGHT',      (0,0), (-1,-1), 22),
         ('TOPPADDING',     (0,0), (-1,-1), 4),
         ('BOTTOMPADDING',  (0,0), (-1,-1), 4),
     ]))
-    el += [tbl, Spacer(1,18)]
+    el.append(tbl)
+    el += _section_divider()
 
-    # ── شرح المؤشرات ──
-    el += [HRFlowable(width="100%",thickness=1,color=colors.HexColor('#c5d3e0')),
-           Paragraph(ar("ثانياً: شرح المؤشرات المالية وطريقة الاحتساب"), S_H1)]
-    for key,d in RATIO_DEFS.items():
-        el += [
-            Paragraph(ar(f"◆ {d['name']}"), S_H2),
-            Paragraph(ar(f"📐 طريقة الحساب: {d['formula']}"), S_BODY),
-            Paragraph(ar(f"📌 المعنى: {d['meaning']}"),         S_BODY),
-            Paragraph(ar(f"🎯 المعيار: {d['ideal']}"),           S_SM),
-            Spacer(1,6),
+    # ══════════════════════════════════════════════
+    # القسم الثاني: التحليل التفصيلي المدمج لكل فترة
+    # (شرح النسبة + طريقة الحساب + التقييم معاً)
+    # ══════════════════════════════════════════════
+    el.append(PageBreak())
+    el.append(_section_title("ثانياً: التحليل التفصيلي المدمج لكل فترة", S_H1))
+    el.append(Spacer(1, 6))
+    el.append(Paragraph(ar(
+        "يعرض هذا القسم لكل نسبة: تعريفها ومعناها أولاً، ثم القيمة المحسوبة من بيانات الشركة مع التقييم المباشر."
+    ), S_SM))
+    el.append(Spacer(1, 10))
+
+    for r_idx, (r, lb) in enumerate(zip(ratios_list, labels)):
+        if r_idx > 0:
+            el.append(PageBreak())
+
+        # عنوان الفترة
+        period_p = Paragraph(ar(f"◈ الفترة: {lb}"),
+            _ps(f'ph_{r_idx}', 13, True, TA_RIGHT, colors.HexColor('#1a4a7a'), 24, 10, 4))
+        period_t = Table([[period_p]], colWidths=[CONTENT_W])
+        period_t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0),(-1,-1), colors.HexColor('#ddeeff')),
+            ('TOPPADDING', (0,0),(-1,-1), 8),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 8),
+            ('LEFTPADDING', (0,0),(-1,-1), 12),
+            ('RIGHTPADDING', (0,0),(-1,-1), 12),
+            ('LINEBELOW', (0,0),(-1,-1), 2, colors.HexColor('#2d7dd2')),
+        ]))
+        el.append(period_t)
+        el.append(Spacer(1, 10))
+
+        analysis = build_analysis(r)
+
+        for sec_name, items in analysis.items():
+            if not items:
+                continue
+
+            # عنوان القسم
+            el.append(_subsection_title(f"■ {sec_name}", S_H2))
+            el.append(Spacer(1, 5))
+
+            for (ratio_key, title, calc, meaning, taqeem, level) in items:
+                d = RATIO_DEFS.get(ratio_key) if ratio_key else None
+                group_els = []
+
+                # تعريف النسبة إذا وُجد
+                if d:
+                    group_els.append(def_block_pdf(d, STYLES))
+                    group_els.append(Spacer(1, 3))
+
+                # كتلة التحليل
+                lines = [title, f"📐 الحساب: {calc}", f"📌 {meaning}", f"🎯 {taqeem}"]
+                group_els.append(alert_block_pdf(lines, level, STYLES))
+                group_els.append(Spacer(1, 5))
+
+                el.append(KeepTogether(group_els))
+
+            el += _section_divider()
+
+    # ══════════════════════════════════════════════
+    # القسم الثالث: دليل المؤشرات المرجعية
+    # ══════════════════════════════════════════════
+    el.append(PageBreak())
+    el.append(_section_title("ثالثاً: دليل المؤشرات المرجعية", S_H1))
+    el.append(Spacer(1, 8))
+
+    prev_section = None
+    for key, d in RATIO_DEFS.items():
+        if d.get('section') != prev_section:
+            prev_section = d.get('section')
+            if prev_section:
+                el.append(Spacer(1, 6))
+                el.append(_subsection_title(f"● {prev_section}", S_H2))
+                el.append(Spacer(1, 5))
+
+        name_p = Paragraph(ar(f"◆ {d['name']}"),
+            _ps(f'dn_{key}', 11, True, TA_RIGHT, colors.HexColor('#0d2137'), 20, 6, 2))
+
+        rows_def = [
+            [ar("طريقة الحساب"), ar(d['formula'])],
+            [ar("المعنى"),        ar(d['meaning'])],
+            [ar("المعيار"),       ar(d['ideal'])],
         ]
+        def_tbl = Table(rows_def, colWidths=[int(CONTENT_W*0.22), int(CONTENT_W*0.78)])
+        def_tbl.setStyle(TableStyle([
+            ('FONTNAME',    (0,0),(-1,-1), _FONT_R),
+            ('FONTSIZE',    (0,0),(-1,-1), 9),
+            ('ALIGN',       (0,0),(-1,-1), 'RIGHT'),
+            ('VALIGN',      (0,0),(-1,-1), 'TOP'),
+            ('TEXTCOLOR',   (0,0),(0,-1),  colors.HexColor('#1a4a7a')),
+            ('FONTNAME',    (0,0),(0,-1),  _FONT_B),
+            ('BACKGROUND',  (0,0),(0,-1),  colors.HexColor('#eaf0fb')),
+            ('BACKGROUND',  (1,0),(1,-1),  colors.HexColor('#f9fbfe')),
+            ('GRID',        (0,0),(-1,-1), 0.3, colors.HexColor('#c5d3e0')),
+            ('TOPPADDING',  (0,0),(-1,-1), 4),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 4),
+            ('LEFTPADDING', (0,0),(-1,-1), 8),
+            ('RIGHTPADDING',(0,0),(-1,-1), 8),
+        ]))
+        el.append(KeepTogether([name_p, def_tbl, Spacer(1, 8)]))
 
-    # ── التحليل لكل فترة (مع طريقة الحساب + المعنى + التقييم) ──
-    el += [HRFlowable(width="100%",thickness=1,color=colors.HexColor('#c5d3e0')),
-           Paragraph(ar("ثالثاً: التحليل التفصيلي لكل فترة"), S_H1)]
+    el += _section_divider()
 
-    for r,lb in zip(ratios_list, labels):
-        el += [Spacer(1,10),
-               Paragraph(ar(f"◈ الفترة: {lb}"),
-                   _ps('ph',13,True,TA_RIGHT,colors.HexColor('#1a4a7a'),24,10,4)),
-               HRFlowable(width="100%",thickness=1,color=colors.HexColor('#2d7dd2'),spaceAfter=6)]
-
-        for sec, items in build_analysis(r).items():
-            if not items: continue
-            el.append(Paragraph(ar(f"■ {sec}"), S_H2))
-            for text, level in items:
-                # تقسيم النص على أسطر: السطر الأول عنوان، الباقي تفاصيل
-                lines = [ln.strip() for ln in text.split('\n') if ln.strip()]
-                # إزالة ** من العنوان
-                lines[0] = lines[0].replace('**','')
-                el += [alert_block(lines, level), Spacer(1,3)]
-            el.append(Spacer(1,6))
-
-    # ── تذييل ──
-    el += [Spacer(1,20),
-           HRFlowable(width="100%",thickness=1,color=colors.HexColor('#c5d3e0')),
-           Spacer(1,6),
-           Paragraph(ar("أُعدّ هذا التقرير بواسطة نظام التحليل المالي الآلي"), S_CTR),
-           Paragraph(ar("جميع النسب محسوبة من البيانات المدخلة — يُنصح بمراجعة محاسب قانوني قبل اتخاذ القرارات"), S_CTR)]
+    # ══════════════════════════════════════════════
+    # تذييل الصفحة
+    # ══════════════════════════════════════════════
+    el += [
+        Spacer(1, 16),
+        HRFlowable(width=CONTENT_W, thickness=1,
+                   color=colors.HexColor('#c5d3e0'), spaceAfter=8),
+        Paragraph(ar("أُعدّ هذا التقرير بواسطة نظام التحليل المالي الآلي"), S_CTR),
+        Paragraph(ar("جميع النسب محسوبة من البيانات المدخلة — يُنصح بمراجعة محاسب قانوني قبل اتخاذ القرارات"), S_CTR),
+    ]
 
     doc.build(el)
     buf.seek(0)
@@ -880,48 +1116,24 @@ def sts(key, val):
         if val>=thr: return cls
     return "kpi-bad"
 
-def kpi_html(label,val,fmt,key="",calc=""):
+def kpi_html(label, val, fmt, key="", calc=""):
     if fmt=="ratio": disp=fmt_ratio(val)
     elif fmt=="pct": disp=fmt_pct(val)
     elif fmt=="num": disp=fmt_num(val)
     else: disp=str(val)
-    cls = sts(key,val)
+    cls = sts(key, val)
     ch = f'<div class="kpi-calc">{calc}</div>' if calc else ""
-    return f'<div class="kpi-card {cls}"><div class="kpi-val">{disp}</div><div class="kpi-lbl">{label}</div>{ch}</div>'
+    return (f'<div class="kpi-card {cls}">'
+            f'<div class="kpi-val">{disp}</div>'
+            f'<div class="kpi-lbl">{label}</div>{ch}</div>')
 
 def kpi_row(r, items):
     html = '<div class="kpi-grid">'
-    for key,lbl,fmt,cfn in items:
+    for key, lbl, fmt, cfn in items:
         calc = cfn(r) if cfn else ""
-        html += kpi_html(lbl,float(r.get(key,0)),fmt,key,calc)
+        html += kpi_html(lbl, float(r.get(key, 0)), fmt, key, calc)
     html += '</div>'
     st.markdown(html, unsafe_allow_html=True)
-
-def render_defs():
-    st.markdown('<div class="sec-hdr">📖 شرح المؤشرات المالية</div>', unsafe_allow_html=True)
-    st.markdown('<div class="no-print">💡 ملاحظة: هذا القسم للعرض فقط ولا يظهر عند الطباعة</div>', unsafe_allow_html=True)
-    for key,d in RATIO_DEFS.items():
-        st.markdown(f"""
-        <div class="def-box">
-            <strong>{d['name']}</strong><br>
-            🔢 <strong>طريقة الحساب:</strong> <span class="formula">{d['formula']}</span><br>
-            📌 <strong>المعنى:</strong> {d['meaning']}<br>
-            🎯 <strong>المعيار:</strong> {d['ideal']}
-        </div>""", unsafe_allow_html=True)
-
-def render_analysis_item(text, level):
-    """عرض بند التحليل مع طريقة الحساب والمعنى والتقييم"""
-    css  = {"good":"ab-good","warn":"ab-warn","bad":"ab-bad"}.get(level,"ab-warn")
-    lines = [ln.strip() for ln in text.split('\n') if ln.strip()]
-    # السطر الأول عنوان (عريض)
-    title = lines[0].replace('**','')
-    details = lines[1:]  # طريقة الحساب، المعنى، التقييم
-    details_html = "".join(f"<div style='margin-top:4px;font-size:.87rem'>{d}</div>" for d in details)
-    st.markdown(f"""
-    <div class="abox {css}">
-        <strong style="font-size:.97rem">{title}</strong>
-        {details_html}
-    </div>""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════
 # الواجهة الرئيسية
@@ -934,12 +1146,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# شرح النسب دائماً ظاهر في الأعلى
-render_defs()
-
 st.markdown('<div class="sec-hdr">📂 تحميل البيانات</div>', unsafe_allow_html=True)
 
-AUTO_FILE = "5-2026.xlsx"
+AUTO_FILE = "4-2026.xlsx"
 
 try:
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -948,66 +1157,40 @@ except:
 
 auto_path = os.path.join(script_dir, AUTO_FILE)
 
-# حالة حفظ داخل Streamlit
 if "force_upload" not in st.session_state:
     st.session_state.force_upload = False
 
 uploaded = None
 
-# زر رفع ملف جديد فقط
 col1, col2, col3 = st.columns([1,2,1])
-
 with col2:
     if st.button("⬆ رفع ملف جديد", use_container_width=True):
         st.session_state.force_upload = True
         st.rerun()
 
-# التحميل التلقائي
 if os.path.exists(auto_path) and not st.session_state.force_upload:
-
     st.success(f"✅ تم تحميل الملف تلقائياً: {AUTO_FILE}")
-
     with open(auto_path, "rb") as f:
         uploaded = BytesIO(f.read())
-
 else:
-    st.info("يمكن رفع ملف جديد وسيتم استبدال الملف الحالي تلقائياً")
-
-    new_file = st.file_uploader(
-        "اختر ملف Excel",
-        type=["xlsx", "xls"]
-    )
-
+    st.info("يمكن رفع ملف جديد وسيتم استبداله تلقائياً")
+    new_file = st.file_uploader("اختر ملف Excel", type=["xlsx", "xls"])
     if new_file:
-
         save_path = os.path.join(script_dir, AUTO_FILE)
-
         with open(save_path, "wb") as f:
             f.write(new_file.getbuffer())
-
         uploaded = BytesIO(new_file.getvalue())
-
         st.session_state.force_upload = False
-
         st.success("✅ تم حفظ الملف الجديد واستبداله تلقائياً")
 
-# إذا لا يوجد ملف
 if not uploaded:
     st.markdown("""
-    <div style="
-        background:#f4f8fd;
-        border-radius:12px;
-        padding:20px;
-        text-align:center">
-
+    <div style="background:#f4f8fd;border-radius:12px;padding:20px;text-align:center">
     <h3>إدارة الملفات</h3>
-
     <p>• يتم تحميل 4-2026.xlsx تلقائياً إذا كان موجوداً</p>
     <p>• يمكنك حذفه أو استبداله بملف جديد</p>
-
     </div>
     """, unsafe_allow_html=True)
-
     st.stop()
 
 # قراءة الملف
@@ -1026,104 +1209,135 @@ except Exception as e:
 
 labels = [period_label(m) for m in months]
 
-# التحقق
+# التحقق من البيانات
 st.markdown('<div class="sec-hdr">🔎 التحقق من اكتمال البيانات</div>', unsafe_allow_html=True)
 missing, warns = validate(df, months)
 for w in warns:
     st.markdown(f'<div class="abox ab-warn">⚠️ {w}</div>', unsafe_allow_html=True)
 if missing:
     ih = "".join(f"<li>{m}</li>" for m in missing)
-    st.markdown(f'<div class="abox ab-warn"><strong>⚠️ البنود التالية غير موجودة ({len(missing)}):</strong><ul style="margin:5px 0 0;padding-right:18px">{ih}</ul><em>تحقق من تطابق أسماء البنود في الملف</em></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="abox ab-warn"><strong>⚠️ البنود التالية غير موجودة ({len(missing)}):</strong>'
+        f'<ul style="margin:5px 0 0;padding-right:18px">{ih}</ul>'
+        f'<em>تحقق من تطابق أسماء البنود في الملف</em></div>',
+        unsafe_allow_html=True)
     if not st.checkbox("⚡ الاستمرار رغم البنود الناقصة"):
         st.stop()
 else:
-    st.markdown('<div class="abox ab-good">✅ جميع البنود المطلوبة موجودة — البيانات مكتملة</div>', unsafe_allow_html=True)
+    st.markdown('<div class="abox ab-good">✅ جميع البنود المطلوبة موجودة — البيانات مكتملة</div>',
+                unsafe_allow_html=True)
 st.success(f"✅ تم تحميل الملف | عدد الفترات: {len(months)}")
 
-# المؤشرات
+# حساب المؤشرات
 ratios_list = [calc_ratios(df, m) for m in months]
 rdf = pd.DataFrame(ratios_list)
 rdf['label'] = labels
 
+# ── بطاقات KPI ──
 st.markdown('<div class="sec-hdr">📐 المؤشرات المالية</div>', unsafe_allow_html=True)
-for i,(lb,r) in enumerate(zip(labels,ratios_list)):
-    with st.expander(f"📌 {lb}", expanded=(i==len(labels)-1)):
+for i, (lb, r) in enumerate(zip(labels, ratios_list)):
+    with st.expander(f"📌 {lb}", expanded=(i == len(labels)-1)):
         st.markdown("**📊 نسب السيولة**")
-        kpi_row(r,[
+        kpi_row(r, [
             ("نسبة_التداول",    "نسبة التداول",   "ratio",
              lambda r: f"{fmt_full(r['الأصول_المتداولة'])} ÷ {fmt_full(r['الالتزامات_المتداولة'])}"),
             ("النسبة_السريعة",  "النسبة السريعة", "ratio",
              lambda r: f"(أصول−مخزون) ÷ {fmt_full(r['الالتزامات_المتداولة'])}"),
             ("نسبة_النقدية",    "نسبة النقدية",   "ratio",
              lambda r: f"{fmt_full(r['النقدية'])} ÷ {fmt_full(r['الالتزامات_المتداولة'])}"),
-            ("رأس_المال_العامل","رأس المال العامل","num",None),
+            ("رأس_المال_العامل","رأس المال العامل","num", None),
         ])
         st.markdown("**📊 الهيكل المالي والربحية**")
-        kpi_row(r,[
-            ("نسبة_الديون",       "نسبة الديون",   "pct",None),
-            ("نسبة_حقوق_الملكية","حقوق الملكية",  "pct",None),
+        kpi_row(r, [
+            ("نسبة_الديون",       "نسبة الديون",   "pct", None),
+            ("نسبة_حقوق_الملكية","حقوق الملكية",  "pct", None),
             ("العائد_على_الملكية","ROE",           "pct",
              lambda r: f"{fmt_full(r['صافي_الربح'])} ÷ {fmt_full(r['حقوق_الملكية'])}"),
             ("هامش_الأصول",       "ROA",           "pct",
              lambda r: f"{fmt_full(r['صافي_الربح'])} ÷ {fmt_full(r['إجمالي_الأصول'])}"),
         ])
         st.markdown("**📊 أرقام رئيسية**")
-        kpi_row(r,[
-            ("إجمالي_الأصول",   "إجمالي الأصول","num",None),
-            ("صافي_الربح",      "صافي الربح",   "num",None),
-            ("النقدية",         "النقدية",       "num",None),
-            ("التسهيلات_البنكية","تسهيلات بنكية","num",None),
+        kpi_row(r, [
+            ("إجمالي_الأصول",   "إجمالي الأصول","num", None),
+            ("صافي_الربح",      "صافي الربح",   "num", None),
+            ("النقدية",         "النقدية",       "num", None),
+            ("التسهيلات_البنكية","تسهيلات بنكية","num", None),
         ])
 
-# الرسوم البيانية
+# ── الرسوم البيانية ──
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown('<div class="sec-hdr">📈 الرسوم البيانية والاتجاهات</div>', unsafe_allow_html=True)
 draw_charts(rdf, labels)
 
-# التحليل النصي التفصيلي
-st.markdown('<div class="sec-hdr">🧠 التحليل المالي التفصيلي</div>', unsafe_allow_html=True)
-tabs = st.tabs([f"📌 {lb}" for lb in labels])
-for tab,lb,r in zip(tabs,labels,ratios_list):
-    with tab:
-        for sec,items in build_analysis(r).items():
-            if not items: continue
-            st.markdown(f'<div class="sec-hdr">{sec}</div>', unsafe_allow_html=True)
-            for text,level in items:
-                render_analysis_item(text, level)
+# ══════════════════════════════════════════════════════
+# التحليل المالي المدمج (شرح + تحليل معاً)
+# ══════════════════════════════════════════════════════
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown('<div class="sec-hdr">🧠 التحليل المالي التفصيلي (الشرح + طريقة التنفيذ مدمجان)</div>',
+            unsafe_allow_html=True)
+st.markdown(
+    '<div class="no-print">💡 كل نسبة تعرض: تعريفها ومعناها أولاً، ثم القيمة الفعلية وطريقة حسابها والتقييم مباشرةً</div>',
+    unsafe_allow_html=True)
 
-# جدول المقارنة
+tabs = st.tabs([f"📌 {lb}" for lb in labels])
+for tab, lb, r in zip(tabs, labels, ratios_list):
+    with tab:
+        analysis = build_analysis(r)
+        for sec, items in analysis.items():
+            if not items:
+                continue
+            st.markdown(f'<div class="sec-hdr">{sec}</div>', unsafe_allow_html=True)
+            for (ratio_key, title, calc, meaning, taqeem, level) in items:
+                render_merged_analysis_item(ratio_key, title, calc, meaning, taqeem, level)
+        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+
+# ── جدول المقارنة الشاملة ──
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown('<div class="sec-hdr">📊 جدول المقارنة الشاملة</div>', unsafe_allow_html=True)
 hh = "".join(f"<th>{lb}</th>" for lb in labels)
 rh = ""
 CMP = [
-    ("نسبة_التداول","نسبة التداول",fmt_ratio),
-    ("النسبة_السريعة","النسبة السريعة",fmt_ratio),
-    ("نسبة_النقدية","نسبة النقدية",fmt_ratio),
-    ("نسبة_الديون","نسبة الديون",fmt_pct),
-    ("نسبة_حقوق_الملكية","نسبة حقوق الملكية",fmt_pct),
-    ("العائد_على_الملكية","ROE",fmt_pct),
-    ("هامش_الأصول","ROA",fmt_pct),
-    ("نسبة_التمويل_البنكي","التمويل البنكي",fmt_pct),
-    ("إجمالي_الأصول","إجمالي الأصول",fmt_num),
-    ("صافي_الربح","صافي الربح / الخسارة",fmt_num),
-    ("النقدية","النقدية",fmt_num),
-    ("العملاء","أرصدة العملاء",fmt_num),
-    ("المخزون","المخزون",fmt_num),
-    ("التسهيلات_البنكية","التسهيلات البنكية",fmt_num),
-    ("رأس_المال_العامل","رأس المال العامل",fmt_num),
+    ("نسبة_التداول",        "نسبة التداول",         fmt_ratio),
+    ("النسبة_السريعة",      "النسبة السريعة",        fmt_ratio),
+    ("نسبة_النقدية",        "نسبة النقدية",          fmt_ratio),
+    ("نسبة_الديون",         "نسبة الديون",           fmt_pct),
+    ("نسبة_حقوق_الملكية",  "نسبة حقوق الملكية",     fmt_pct),
+    ("العائد_على_الملكية",  "ROE",                   fmt_pct),
+    ("هامش_الأصول",         "ROA",                   fmt_pct),
+    ("نسبة_التمويل_البنكي", "التمويل البنكي",         fmt_pct),
+    ("إجمالي_الأصول",       "إجمالي الأصول",         fmt_num),
+    ("صافي_الربح",          "صافي الربح / الخسارة",  fmt_num),
+    ("النقدية",             "النقدية",                fmt_num),
+    ("العملاء",             "أرصدة العملاء",          fmt_num),
+    ("المخزون",             "المخزون",                fmt_num),
+    ("التسهيلات_البنكية",   "التسهيلات البنكية",      fmt_num),
+    ("رأس_المال_العامل",    "رأس المال العامل",       fmt_num),
 ]
-for key,lbl,fmtr in CMP:
-    cells = "".join(f"<td>{fmtr(r.get(key,0))}</td>" for r in ratios_list)
+for key, lbl, fmtr in CMP:
+    cells = "".join(f"<td>{fmtr(r.get(key, 0))}</td>" for r in ratios_list)
     rh += f"<tr><td><strong>{lbl}</strong></td>{cells}</tr>"
-st.markdown(f'<div style="overflow-x:auto"><table class="ctbl"><thead><tr><th>المؤشر</th>{hh}</tr></thead><tbody>{rh}</tbody></table></div>', unsafe_allow_html=True)
+st.markdown(
+    f'<div style="overflow-x:auto"><table class="ctbl">'
+    f'<thead><tr><th>المؤشر</th>{hh}</tr></thead>'
+    f'<tbody>{rh}</tbody></table></div>',
+    unsafe_allow_html=True)
 
-# PDF
+# ── تحميل PDF ──
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown('<div class="sec-hdr">📄 تحميل التقرير PDF</div>', unsafe_allow_html=True)
 
-# إظهار الخط المستخدم
-font_r = _find_font(False)
+font_r    = _find_font(False)
 font_name = "Amiri" if font_r and "Amiri" in font_r else "DejaVu Sans"
 
-st.info("📋 التقرير يشمل: ملخص المؤشرات · شرح كل نسبة بطريقة حسابها · التحليل التفصيلي بالأرقام · التوصيات")
+st.info(
+    f"📋 التقرير يشمل:\n"
+    f"• ملخص جدولي بجميع المؤشرات\n"
+    f"• تحليل مدمج لكل فترة (تعريف النسبة + حسابها + تقييمها في مكان واحد)\n"
+    f"• دليل مرجعي لجميع النسب\n"
+    f"• كل محتوى داخل حدود A4 مع فواصل واضحة بين الأقسام\n"
+    f"• الخط المستخدم: {font_name}"
+)
+
 if st.button("🔄 إنشاء التقرير PDF", type="primary"):
     with st.spinner("جارٍ إعداد التقرير..."):
         pdf_buf = build_pdf(ratios_list, months, labels)
