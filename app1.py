@@ -939,7 +939,7 @@ render_defs()
 
 st.markdown('<div class="sec-hdr">📂 تحميل البيانات</div>', unsafe_allow_html=True)
 
-AUTO_FILE = "4-2026.xlsx"
+AUTO_FILE = "5-2026.xlsx"
 
 try:
     script_dir = os.path.dirname(os.path.abspath(__file__))
